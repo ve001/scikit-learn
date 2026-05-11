@@ -1922,6 +1922,32 @@ def test_check_sparse_pandas_sp_format(sp_format):
     assert_allclose_dense_sparse(sp_mat, result)
 
 
+def test_check_array_pd_sparse_dataframe_warning():
+    """Test that check_array warns on pandas dataframe with sparse columns."""
+    pd = pytest.importorskip("pandas")
+
+    # Warning is raised only when some of the columns are sparse, not all of them.
+    # Construct a pandas.DataFrame with first column dense, all others sparse.
+    df = pd.DataFrame({"col_0": np.linspace(0, 1, 10)})
+    for i in range(1, 4):
+        arr = np.zeros(10)
+        arr[:4] = np.arange(4)
+        arr = pd.arrays.SparseArray(arr, fill_value=0)
+        df[f"col_{i}"] = arr
+
+    msg = "pandas.DataFrame with sparse columns found."
+    with pytest.warns(UserWarning, match=msg):
+        check_array(df, accept_sparse=True)
+
+    # No warning when the whole dataframe is sparse
+    df = df.drop(columns="col_0")
+    assert hasattr(df, "sparse")
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", UserWarning)
+        check_array(df, accept_sparse=True)
+
+
 @pytest.mark.parametrize(
     "ntype1, ntype2",
     [
